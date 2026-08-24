@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel-secrets"
+version = "0.1.0"
+description = "Passive scanner for secrets leaked into a git repository's working tree and commit history"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Zuko Gutyungwa" }]
+# No runtime dependencies yet, deliberately: pattern matching and entropy
+# analysis only need the standard library (re, math). New dependencies get
+# added here only once a specific day's work actually needs one.
+dependencies = []
+
+[project.scripts]
+sentinel-secrets = "sentinel_secrets.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "bandit>=1.7",
+    "pip-audit>=2.7",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

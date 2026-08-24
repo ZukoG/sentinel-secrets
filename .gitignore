@@ -1,0 +1,35 @@
+# CLAUDE.md is session context for an AI coding assistant, kept local only, never committed.
+CLAUDE.md
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Baseline files that may contain findings from a real scan (fingerprints only, but keep local scan output out of git regardless)
+*.sentinel-secrets-baseline.local.json
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
