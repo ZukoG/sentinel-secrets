@@ -63,7 +63,16 @@ def _error(message: str) -> int:
     return 2
 
 
+def _use_utf8_output() -> None:
+    # Redirected output otherwise uses the platform encoding (cp1252 on
+    # Windows), which can't represent every filename a finding can name.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
+
+
 def main(argv: list[str] | None = None) -> int:
+    _use_utf8_output()
     args = build_parser().parse_args(argv)
 
     # Exit code 1 means "findings exist", so a failed scan must not use it.
