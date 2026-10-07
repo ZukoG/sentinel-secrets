@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# None of these jobs write anything back to the repo.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor declared in pyproject.toml, so it has to be tested,
+        # not just assumed.
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest -v
+
+  bandit:
+    name: bandit (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Reports only for now. No triage baseline exists yet for these findings.
+      - name: Run bandit
+        run: bandit -r src --exit-zero
+
+  dependency-audit:
+    name: pip-audit (dependency scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # The package itself has no runtime dependencies, so anything reported
+      # here is in the dev tooling. Reports only for now, same as bandit.
+      - name: Run pip-audit
+        continue-on-error: true
+        run: pip-audit --skip-editable
