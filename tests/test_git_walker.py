@@ -180,3 +180,19 @@ def test_history_survives_non_utf8_and_non_ascii_text(tmp_path) -> None:
         finding.rule_name == "AWS Access Key ID"
         for finding in findings
     )
+
+
+def test_working_tree_scans_files_with_non_ascii_names(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+
+    (repo_path / "café.py").write_text(
+        "aws_key = AKIAIOSFODNN7EXAMPLE\n",
+        encoding="utf-8",
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add file", cwd=repo)
+
+    findings = walk_working_tree(repo)
+
+    assert [finding.source for finding in findings] == ["café.py"]
