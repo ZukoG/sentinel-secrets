@@ -49,5 +49,16 @@ SIGNATURES: list[Signature] = [
             regex=re.compile(r"""(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['"][A-Za-z0-9_-]{16,}['"]"""),
             severity=Severity.MEDIUM,
             description="Catches named-but-unrecognized secrets (e.g. api_key = '...'), lower severity than the others because it's pattern-shaped guessing, not a confirmed format, so it's more prone to false positives"
+        ),
+
+    Signature(
+            name='Unquoted Secret Assignment',
+            regex=re.compile(
+                r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*"
+                r"(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])"
+                r"[A-Za-z0-9_-]{16,}(?![A-Za-z0-9_(-])"
+            ),
+            severity=Severity.MEDIUM,
+            description="Catches config-style KEY=value lines with no quotes, as in .env and .properties files. The value has to mix letters and digits and can't be a function call, which keeps ordinary code like token = get_token() from matching"
         )
 ]
