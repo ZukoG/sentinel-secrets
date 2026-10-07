@@ -1,6 +1,8 @@
+import io
 import json
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -200,3 +202,31 @@ def test_update_baseline_keeps_existing_entries(repo_with_secrets, tmp_path):
     main([repo_with_secrets, "--update-baseline", baseline_path])
 
     assert "existing-entry" in load_baseline(baseline_path)
+
+
+def test_report_survives_non_cp1252_filename_when_redirected(
+    tmp_path,
+    monkeypatch,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.name", "Test User")
+    _run_git(repo, "config", "user.email", "test@example.com")
+
+    (repo / "設定.py").write_text(
+        "aws_key = AKIAIOSFODNN7EXAMPLE\n",
+        encoding="utf-8",
+    )
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-m", "Add file")
+
+    # What Windows gives a redirected stdout: a cp1252 stream.
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+
+    assert main([str(repo), "--no-history"]) == 1
+
+    sys.stdout.flush()
+    assert "設定.py" in raw.getvalue().decode("utf-8")
