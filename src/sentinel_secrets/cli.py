@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 from .git_walker import walk_history, walk_working_tree
-from .baseline import filter_findings, load_baseline
+from .baseline import filter_findings, fingerprint, load_baseline, save_baseline
 from .report import format_console, format_json
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,6 +21,13 @@ def build_parser() -> argparse.ArgumentParser:
         '--baseline',
         default=None,
         help='Path to a baseline JSON file',
+    )
+
+    parser.add_argument(
+        '--update-baseline',
+        default=None,
+        metavar='PATH',
+        help='Add every current finding to this baseline file and exit',
     )
     
     parser.add_argument(
@@ -69,6 +76,15 @@ def main(argv: list[str] | None = None) -> int:
         return _error('git is not installed or not on PATH')
     except subprocess.CalledProcessError as error:
         return _error((error.stderr or '').strip() or 'git failed')
+
+    if args.update_baseline:
+        existing = load_baseline(args.update_baseline)
+        updated = existing | {fingerprint(finding) for finding in findings}
+        save_baseline(args.update_baseline, updated)
+
+        added = len(updated) - len(existing)
+        print(f'Added {added} finding(s) to {args.update_baseline}')
+        return 0
 
     if args.baseline:
         baseline = load_baseline(args.baseline)
