@@ -1,3 +1,5 @@
+import pytest
+
 from sentinel_secrets.scanner import scan_content, Finding
 
 def test_secret_on_third_line_has_correct_line_number() -> None:
@@ -81,3 +83,28 @@ def test_matched_secret_is_truncated() -> None:
 
     assert len(matched_text) < len(secret)
     assert matched_text.endswith("...")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "font = Standard14Fonts.FontName.HELVETICA_BOLD",
+        'cp "$TMP_DOWNLOAD_DIR/$distributionUrlNameMain/bin/$MVN_CMD"',
+        "if (!VALID_FRAME_OPTIONS.contains(value)) {",
+    ],
+)
+def test_identifiers_and_shell_paths_are_not_high_entropy(line: str) -> None:
+    assert scan_content(line) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "aws_secret = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "jwt eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+    ],
+)
+def test_random_secrets_are_still_high_entropy(line: str) -> None:
+    rule_names = [finding.rule_name for finding in scan_content(line)]
+
+    assert "High Entropy String" in rule_names
