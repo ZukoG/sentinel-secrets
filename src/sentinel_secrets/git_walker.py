@@ -13,6 +13,8 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
             "-C",
             repo_path,
             "ls-files",
+            # NUL-separated raw paths; the default output escapes non-ASCII names.
+            "-z",
             "--cached",
             "--others",
             "--exclude-standard",
@@ -25,7 +27,10 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
 
     findings: list[Finding] = []
 
-    for relative_path in result.stdout.splitlines():
+    for relative_path in result.stdout.split("\0"):
+        if not relative_path:
+            continue
+
         file_path = Path(repo_path) / relative_path
 
         try:
