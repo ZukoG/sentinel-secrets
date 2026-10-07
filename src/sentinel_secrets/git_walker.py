@@ -18,7 +18,8 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
             "--exclude-standard",
         ],
          capture_output=True,
-         text=True,
+         encoding="utf-8",
+         errors="replace",
          check=True,
     )
 
@@ -59,7 +60,9 @@ def walk_history(repo_path: str) -> list[Finding]:
             "--no-ext-diff",
         ],
         capture_output=True,
-        text=True,
+        # Git output is UTF-8; the platform default (cp1252 on Windows) isn't.
+        encoding="utf-8",
+        errors="replace",
         check=True,
     )
 
