@@ -24,6 +24,14 @@ def test_known_secret_is_not_double_reported_as_high_entropy() -> None:
     assert findings[0].rule_name == "GitHub Token"
 
 
+def test_known_secret_is_not_double_reported_by_generic_signature() -> None:
+    text = 'GITHUB_TOKEN = "ghp_' + "a" * 36 + '"'
+
+    findings = scan_content(text)
+
+    assert [finding.rule_name for finding in findings] == ["GitHub Token"]
+
+
 def test_multiple_secrets_on_different_lines() -> None:
     text = (
         "aws_key = AKIAIOSFODNN7PUEXAMPLE\n"
