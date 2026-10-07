@@ -153,3 +153,25 @@ def test_history_and_no_history_are_mutually_exclusive(
         )
 
     assert exc.value.code == 2
+
+
+@pytest.fixture
+def isolated_tmp_path(tmp_path, monkeypatch):
+    # Stop git from finding a repository in any parent of tmp_path.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    return tmp_path
+
+
+def test_missing_path_exits_2_with_message(isolated_tmp_path, capsys):
+    missing = isolated_tmp_path / "does-not-exist"
+
+    assert main([str(missing)]) == 2
+    assert "error" in capsys.readouterr().err
+
+
+def test_non_repository_exits_2_with_message(isolated_tmp_path, capsys):
+    plain_dir = isolated_tmp_path / "plain"
+    plain_dir.mkdir()
+
+    assert main([str(plain_dir)]) == 2
+    assert "not a git repository" in capsys.readouterr().err
