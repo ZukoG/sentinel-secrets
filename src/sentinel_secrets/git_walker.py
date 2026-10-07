@@ -7,6 +7,9 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
     result = subprocess.run(
          [
             "git",
+            # The scanned repo's own config must not be able to run commands.
+            "-c",
+            "core.fsmonitor=false",
             "-C",
             repo_path,
             "ls-files",
@@ -44,11 +47,16 @@ def walk_history(repo_path: str) -> list[Finding]:
     result = subprocess.run(
         [
             "git",
+            # The scanned repo's own config must not be able to run commands.
+            "-c",
+            "core.fsmonitor=false",
             "-C",
             repo_path,
             "log",
             "-p",
             "--all",
+            "--no-textconv",
+            "--no-ext-diff",
         ],
         capture_output=True,
         text=True,
