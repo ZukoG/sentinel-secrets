@@ -196,3 +196,19 @@ def test_working_tree_scans_files_with_non_ascii_names(tmp_path) -> None:
     findings = walk_working_tree(repo)
 
     assert [finding.source for finding in findings] == ["café.py"]
+
+
+def test_working_tree_scans_text_that_is_not_utf8(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+
+    (repo_path / "app.properties").write_bytes(
+        b"greeting=caf\xe9\n"
+        b"aws_key=AKIAIOSFODNN7EXAMPLE\n"
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add properties", cwd=repo)
+
+    findings = walk_working_tree(repo)
+
+    assert [finding.source for finding in findings] == ["app.properties"]
