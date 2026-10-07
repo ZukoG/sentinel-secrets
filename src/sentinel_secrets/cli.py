@@ -7,7 +7,8 @@ from .report import format_console, format_json
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Scan a Git repository for exposed secrets.'
+        prog='sentinel-secrets',
+        description='Scan a Git repository for exposed secrets.',
     )
     
     parser.add_argument(
