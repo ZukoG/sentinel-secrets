@@ -14,6 +14,11 @@ def _signature(name: str) -> Signature:
         ("Slack Token", "xoxb-1234567890abcdef"),
         ("Private Key Header", "-----BEGIN RSA PRIVATE KEY-----"),
         ("Generic Secret Assignment", 'api_key = "abcdefghijklmnopqrstuvwx"'),
+        (
+            "Unquoted Secret Assignment",
+            "app.jwt.secret=${JWT_SECRET:dev-only-local-secret-key-1234567890}",
+        ),
+        ("Unquoted Secret Assignment", "API_KEY=sk3J9xQ2mW8vL5pN1rT7yB4h"),
     ],
 )
 
@@ -31,6 +36,8 @@ def test_signatures_match_real_examples(signature_name: str, text: str) -> None:
         ("Slack Token", "xoxb-short"),
         ("Private Key Header", "-----BEGIN RSA KEY-----"),
         ("Generic Secret Assignment", 'api_key = "short"'),
+        ("Unquoted Secret Assignment", "token = get_token_from_environment()"),
+        ("Unquoted Secret Assignment", "password = some_variable_name_here"),
     ],
 )
 def test_signatures_do_not_match_invalid_examples(
