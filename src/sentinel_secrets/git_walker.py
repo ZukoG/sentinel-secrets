@@ -34,9 +34,16 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
         file_path = Path(repo_path) / relative_path
 
         try:
-            content = file_path.read_text(encoding='utf-8')
-        except (UnicodeDecodeError, OSError):
+            raw = file_path.read_bytes()
+        except OSError:
             continue
+
+        # Same rule git uses: a NUL byte near the start means binary. Anything
+        # else is text, even if it isn't valid UTF-8 (e.g. Latin-1 .properties).
+        if b"\0" in raw[:8000]:
+            continue
+
+        content = raw.decode("utf-8", errors="replace")
 
         findings.extend(
             scan_content(
