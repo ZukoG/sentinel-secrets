@@ -1,4 +1,5 @@
 import argparse
+import subprocess
 import sys
 
 from .git_walker import walk_history, walk_working_tree
@@ -50,14 +51,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _error(message: str) -> int:
+    print(f'sentinel-secrets: error: {message}', file=sys.stderr)
+    return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    
-    findings = walk_working_tree(args.repo_path)
-    
-    if args.history:
-        findings += walk_history(args.repo_path)
-        
+
+    # Exit code 1 means "findings exist", so a failed scan must not use it.
+    try:
+        findings = walk_working_tree(args.repo_path)
+
+        if args.history:
+            findings += walk_history(args.repo_path)
+    except FileNotFoundError:
+        return _error('git is not installed or not on PATH')
+    except subprocess.CalledProcessError as error:
+        return _error((error.stderr or '').strip() or 'git failed')
+
     if args.baseline:
         baseline = load_baseline(args.baseline)
     else:
