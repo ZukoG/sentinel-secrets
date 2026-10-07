@@ -158,3 +158,25 @@ def test_scanned_repo_config_cannot_run_commands(tmp_path) -> None:
     walk_history(repo)
 
     assert not marker.exists()
+
+
+def test_history_survives_non_utf8_and_non_ascii_text(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+
+    # UTF-8 "Á" breaks cp1252 decoding (Windows); a bare Latin-1 byte
+    # breaks strict UTF-8 decoding (Linux).
+    (repo_path / "names.py").write_bytes(
+        'name = "Álvaro"\n'.encode("utf-8")
+        + b"city = caf\xe9\n"
+        + b"aws_key = AKIAIOSFODNN7EXAMPLE\n"
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add names", cwd=repo)
+
+    findings = walk_history(repo)
+
+    assert any(
+        finding.rule_name == "AWS Access Key ID"
+        for finding in findings
+    )
