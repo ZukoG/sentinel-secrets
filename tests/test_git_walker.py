@@ -114,3 +114,47 @@ def test_history_sources_are_commit_references(git_repo: str) -> None:
         finding.source.startswith("commit ")
         for finding in findings
     )
+
+
+def _init_repo(path) -> str:
+    path.mkdir()
+    repo = str(path)
+
+    _run_git("init", cwd=repo)
+    _run_git("config", "user.email", "test@example.com", cwd=repo)
+    _run_git("config", "user.name", "Test User", cwd=repo)
+
+    return repo
+
+
+def test_scanned_repo_config_cannot_run_commands(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+    marker = tmp_path / "marker"
+
+    (repo_path / ".gitattributes").write_text(
+        "*.txt diff=probe\n",
+        encoding="utf-8",
+    )
+    (repo_path / "a.txt").write_text("one\n", encoding="utf-8")
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "one", cwd=repo)
+
+    (repo_path / "a.txt").write_text("one\ntwo\n", encoding="utf-8")
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "two", cwd=repo)
+
+    # Hostile config goes in last, so the setup commands above can't trigger it.
+    touch = f"touch \"{marker.as_posix()}\""
+    _run_git(
+        "config",
+        "diff.probe.textconv",
+        f"sh -c '{touch}; cat \"$1\"' --",
+        cwd=repo,
+    )
+    _run_git("config", "core.fsmonitor", f"sh -c '{touch}' --", cwd=repo)
+
+    walk_working_tree(repo)
+    walk_history(repo)
+
+    assert not marker.exists()
