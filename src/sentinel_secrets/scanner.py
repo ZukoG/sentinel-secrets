@@ -32,11 +32,24 @@ def scan_content(
 
     for line_number, line in enumerate(text.splitlines(), start=1):
         signature_matches: list[str] = []
+        reported_spans: list[tuple[int, int]] = []
 
-        #First detect known secret patterns.
+        # First detect known secret patterns. SIGNATURES runs from most specific
+        # to most generic, so a later match overlapping an earlier one is the
+        # same secret and is skipped.
         for signature in SIGNATURES:
             for match in signature.regex.finditer(line):
                 matched_text = match.group(0)
+                signature_matches.append(matched_text)
+
+                start, end = match.span()
+                if any(
+                    start < other_end and other_start < end
+                    for other_start, other_end in reported_spans
+                ):
+                    continue
+
+                reported_spans.append((start, end))
 
                 findings.append(
                     Finding(
@@ -47,8 +60,6 @@ def scan_content(
                         matched_text=_truncate(matched_text),
                     )
                 )
-
-                signature_matches.append(matched_text)
 
         # Then check remaining tokens for high entropy.
         for token in _extract_tokens(line):
