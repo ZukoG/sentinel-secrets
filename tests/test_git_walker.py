@@ -114,3 +114,128 @@ def test_history_sources_are_commit_references(git_repo: str) -> None:
         finding.source.startswith("commit ")
         for finding in findings
     )
+
+
+def _init_repo(path) -> str:
+    path.mkdir()
+    repo = str(path)
+
+    _run_git("init", cwd=repo)
+    _run_git("config", "user.email", "test@example.com", cwd=repo)
+    _run_git("config", "user.name", "Test User", cwd=repo)
+
+    return repo
+
+
+def test_scanned_repo_config_cannot_run_commands(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+    marker = tmp_path / "marker"
+
+    (repo_path / ".gitattributes").write_text(
+        "*.txt diff=probe\n",
+        encoding="utf-8",
+    )
+    (repo_path / "a.txt").write_text("one\n", encoding="utf-8")
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "one", cwd=repo)
+
+    (repo_path / "a.txt").write_text("one\ntwo\n", encoding="utf-8")
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "two", cwd=repo)
+
+    # Hostile config goes in last, so the setup commands above can't trigger it.
+    touch = f"touch \"{marker.as_posix()}\""
+    _run_git(
+        "config",
+        "diff.probe.textconv",
+        f"sh -c '{touch}; cat \"$1\"' --",
+        cwd=repo,
+    )
+    _run_git("config", "core.fsmonitor", f"sh -c '{touch}' --", cwd=repo)
+
+    walk_working_tree(repo)
+    walk_history(repo)
+
+    assert not marker.exists()
+
+
+def test_history_survives_non_utf8_and_non_ascii_text(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+
+    # UTF-8 "Á" breaks cp1252 decoding (Windows); a bare Latin-1 byte
+    # breaks strict UTF-8 decoding (Linux).
+    (repo_path / "names.py").write_bytes(
+        'name = "Álvaro"\n'.encode("utf-8")
+        + b"city = caf\xe9\n"
+        + b"aws_key = AKIAIOSFODNN7EXAMPLE\n"
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add names", cwd=repo)
+
+    findings = walk_history(repo)
+
+    assert any(
+        finding.rule_name == "AWS Access Key ID"
+        for finding in findings
+    )
+
+
+def test_working_tree_scans_files_with_non_ascii_names(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+
+    (repo_path / "café.py").write_text(
+        "aws_key = AKIAIOSFODNN7EXAMPLE\n",
+        encoding="utf-8",
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add file", cwd=repo)
+
+    findings = walk_working_tree(repo)
+
+    assert [finding.source for finding in findings] == ["café.py"]
+
+
+def test_working_tree_scans_text_that_is_not_utf8(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+
+    (repo_path / "app.properties").write_bytes(
+        b"greeting=caf\xe9\n"
+        b"aws_key=AKIAIOSFODNN7EXAMPLE\n"
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add properties", cwd=repo)
+
+    findings = walk_working_tree(repo)
+
+    assert [finding.source for finding in findings] == ["app.properties"]
+
+
+def test_lock_files_are_excluded_at_any_depth(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+    integrity_hash = "sha512-kJ8x9QeqWM3vLpN2Rt7YbHcZ4FgAsDwU\n"
+
+    (repo_path / "yarn.lock").write_text(integrity_hash, encoding="utf-8")
+    (repo_path / "web").mkdir()
+    (repo_path / "web" / "package-lock.json").write_text(
+        integrity_hash,
+        encoding="utf-8",
+    )
+    (repo_path / "config.py").write_text(
+        "aws_key = AKIAIOSFODNN7EXAMPLE\n",
+        encoding="utf-8",
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add files", cwd=repo)
+
+    tree_findings = walk_working_tree(repo)
+    history_findings = walk_history(repo)
+
+    assert [finding.source for finding in tree_findings] == ["config.py"]
+    assert [finding.rule_name for finding in history_findings] == [
+        "AWS Access Key ID",
+    ]

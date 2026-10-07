@@ -18,7 +18,7 @@ down to a single week and a single concern.
 - Scanning a local git repository's working tree files
 - Scanning a local git repository's commit history (diffs across commits)
 - Detecting known secret formats via regex signatures (cloud provider keys,
-  VCS/chat platform tokens, private key headers)
+  VCS/chat platform tokens, private key headers, named secret assignments)
 - Detecting unnamed high-entropy strings that don't match a known format
 - Suppressing confirmed false positives via a baseline/allowlist file
 - Reporting findings to the console and as JSON, with matched secret
@@ -39,15 +39,16 @@ down to a single week and a single concern.
 
 | ID | Requirement |
 |---|---|
-| FR-1 | The tool shall detect known secret formats in scanned content using named regex signatures. |
-| FR-2 | The tool shall flag high-entropy strings that don't match a known signature. A token is flagged when it is at least 20 characters long and scores above 4.5 bits per character. Both values are parameters of `is_high_entropy` but are not exposed as CLI flags in v1.0.0. |
-| FR-3 | The tool shall scan every file in the working tree that git does not ignore, including untracked files, respecting `.gitignore`. Files that aren't valid UTF-8 text (binary files) are skipped rather than failing the scan. |
+| FR-1 | The tool shall detect known secret formats in scanned content using named regex signatures: AWS access key IDs, GitHub tokens, Slack tokens, PEM private key headers, and quoted or unquoted assignments to names like `api_key`, `secret`, `token`, or `password`. |
+| FR-2 | The tool shall flag high-entropy strings that don't match a known signature. A token is flagged when it is at least 20 characters long and scores above 4.5 bits per character. Lines are split into tokens on whitespace, quotes, brackets, and assignment punctuation, plus `.` and `$`, so dotted identifiers and shell variables are scored as separate words. Both thresholds are parameters of `is_high_entropy` but are not exposed as CLI flags in v1.0.0. |
+| FR-3 | The tool shall scan every file in the working tree that git does not ignore, including untracked files and files with non-ASCII names, respecting `.gitignore`. A file is treated as binary and skipped only if it contains a NUL byte near the start, the same rule git uses; any other file is scanned as text, even if it isn't valid UTF-8. |
 | FR-4 | The tool shall scan the full commit history by walking each commit's added lines, so a secret committed and later removed is still caught. |
-| FR-5 | The tool shall support a baseline file recording accepted findings by fingerprint, a SHA-256 hash of the finding's source, rule name, and truncated matched text, and shall exclude any current finding that matches an entry in it. |
+| FR-5 | The tool shall support a baseline file recording accepted findings by fingerprint, a SHA-256 hash of the finding's source, rule name, and truncated matched text, and shall exclude any current finding that matches an entry in it. The CLI shall be able to create or extend a baseline from the current findings. |
 | FR-6 | The tool shall report findings to the console in a readable format and, optionally, as JSON. |
 | FR-7 | Any output, in any format, shall truncate the matched secret value rather than printing it in full. Truncation happens when a finding is created, keeping the first 6 characters, so the full value never travels past the line it was found on. |
-| FR-8 | The tool shall be runnable from the command line against a target repository path, with flags to select the baseline file, output format, and whether history scanning is included. |
-| FR-9 | The tool shall exit with status 1 when findings remain after baseline filtering and 0 when none do, so it can gate a CI pipeline elsewhere. Invalid arguments exit with status 2. |
+| FR-8 | The tool shall be runnable from the command line against a target repository path, with flags to select the baseline file, update a baseline file, choose the output format, and choose whether history scanning is included. |
+| FR-9 | The tool shall exit with status 1 when findings remain after baseline filtering and 0 when none do, so it can gate a CI pipeline elsewhere. Invalid arguments, a path that isn't a git repository, and a missing `git` executable exit with status 2 and a readable message, never a traceback. |
+| FR-10 | Dependency lock files (`package-lock.json`, `yarn.lock`, `poetry.lock`, `.terraform.lock.hcl`, and similar) shall be excluded from both the working tree and history scans, since their integrity hashes are random by design. |
 
 ## 4. Non-Functional Requirements
 
@@ -55,8 +56,10 @@ down to a single week and a single concern.
 |---|---|
 | NFR-1 | The tool makes no network calls under any circumstance. |
 | NFR-2 | The tool never modifies the repository it scans. It only runs read-only git commands (`git ls-files`, `git log`). |
-| NFR-3 | The tool must run against a repository with a few hundred commits in well under a minute on ordinary hardware. Measured so far: a real repository with 106 commits and 92 tracked files took 3.7 seconds for a full working tree and history scan. A repository with a few hundred commits hasn't been measured directly yet. |
+| NFR-3 | The tool must run against a repository with a few hundred commits in well under a minute on ordinary hardware. Measured so far: a real repository with 106 commits and 92 tracked files took 1.3 seconds for a full working tree and history scan. A repository with a few hundred commits hasn't been measured directly yet. |
 | NFR-4 | Every reported finding must include enough context to locate it without re-running the scan. Working tree findings carry a file path and line number. History findings carry the short hash of the commit that introduced the secret, plus a line number relative to that commit's added lines rather than to a file. |
+| NFR-5 | Scanning a repository must never execute commands defined by that repository's own configuration. Git settings that can name a command (`core.fsmonitor`, textconv and external diff drivers) are disabled for every git call the tool makes. |
+| NFR-6 | Output must not depend on the platform's default text encoding. Git output is decoded as UTF-8, and reports are written as UTF-8 even when redirected to a file or pipe. |
 
 ## 5. Detection Approach
 
@@ -73,8 +76,11 @@ relying on either alone:
   cost of a higher false-positive rate on things like hashes and encoded
   binary data.
 
-When both techniques flag the same value, only the signature match is
-reported, so one secret never shows up twice under two rule names.
+Each secret is reported once. Signatures are checked from most specific to
+most generic, and a match that overlaps one already reported on the same
+line is skipped, so a quoted GitHub token is reported as a GitHub Token
+rather than also as a generic assignment. Entropy is only checked for
+tokens no signature has already matched.
 
 The baseline file (FR-5) exists specifically to make that entropy
 false-positive cost manageable in practice, rather than avoiding entropy

@@ -1,12 +1,14 @@
+import io
 import json
 import shutil
 import subprocess
+import sys
 
 import pytest
 
 from sentinel_secrets.cli import main
 from sentinel_secrets.git_walker import walk_working_tree, walk_history
-from sentinel_secrets.baseline import fingerprint, save_baseline
+from sentinel_secrets.baseline import fingerprint, load_baseline, save_baseline
 
 
 def _run_git(repo, *args):
@@ -153,3 +155,78 @@ def test_history_and_no_history_are_mutually_exclusive(
         )
 
     assert exc.value.code == 2
+
+
+@pytest.fixture
+def isolated_tmp_path(tmp_path, monkeypatch):
+    # Stop git from finding a repository in any parent of tmp_path.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    return tmp_path
+
+
+def test_missing_path_exits_2_with_message(isolated_tmp_path, capsys):
+    missing = isolated_tmp_path / "does-not-exist"
+
+    assert main([str(missing)]) == 2
+    assert "error" in capsys.readouterr().err
+
+
+def test_non_repository_exits_2_with_message(isolated_tmp_path, capsys):
+    plain_dir = isolated_tmp_path / "plain"
+    plain_dir.mkdir()
+
+    assert main([str(plain_dir)]) == 2
+    assert "not a git repository" in capsys.readouterr().err
+
+
+def test_update_baseline_then_scan_is_clean(
+    repo_with_secrets,
+    tmp_path,
+    capsys,
+):
+    baseline_path = str(tmp_path / "baseline.json")
+
+    assert main([repo_with_secrets, "--update-baseline", baseline_path]) == 0
+    assert "Added 3 finding(s)" in capsys.readouterr().out
+
+    assert main([repo_with_secrets, "--update-baseline", baseline_path]) == 0
+    assert "Added 0 finding(s)" in capsys.readouterr().out
+
+    assert main([repo_with_secrets, "--baseline", baseline_path]) == 0
+
+
+def test_update_baseline_keeps_existing_entries(repo_with_secrets, tmp_path):
+    baseline_path = str(tmp_path / "baseline.json")
+    save_baseline(baseline_path, {"existing-entry"})
+
+    main([repo_with_secrets, "--update-baseline", baseline_path])
+
+    assert "existing-entry" in load_baseline(baseline_path)
+
+
+def test_report_survives_non_cp1252_filename_when_redirected(
+    tmp_path,
+    monkeypatch,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.name", "Test User")
+    _run_git(repo, "config", "user.email", "test@example.com")
+
+    (repo / "設定.py").write_text(
+        "aws_key = AKIAIOSFODNN7EXAMPLE\n",
+        encoding="utf-8",
+    )
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-m", "Add file")
+
+    # What Windows gives a redirected stdout: a cp1252 stream.
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+
+    assert main([str(repo), "--no-history"]) == 1
+
+    sys.stdout.flush()
+    assert "設定.py" in raw.getvalue().decode("utf-8")

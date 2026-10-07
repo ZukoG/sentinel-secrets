@@ -3,31 +3,70 @@ from pathlib import Path
 
 from .scanner import Finding, scan_content
 
+# Dependency lock files are full of integrity hashes, random by design, which
+# would otherwise flood every scan with entropy findings.
+LOCK_FILES = (
+    ".terraform.lock.hcl",
+    "Cargo.lock",
+    "Gemfile.lock",
+    "Pipfile.lock",
+    "composer.lock",
+    "go.sum",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "uv.lock",
+    "yarn.lock",
+)
+
+_LOCK_FILE_EXCLUDES = [
+    "--",
+    ".",
+    *(f":(exclude,glob)**/{name}" for name in LOCK_FILES),
+]
+
 def walk_working_tree(repo_path: str) -> list[Finding]:
     result = subprocess.run(
          [
             "git",
+            # The scanned repo's own config must not be able to run commands.
+            "-c",
+            "core.fsmonitor=false",
             "-C",
             repo_path,
             "ls-files",
+            # NUL-separated raw paths; the default output escapes non-ASCII names.
+            "-z",
             "--cached",
             "--others",
             "--exclude-standard",
+            *_LOCK_FILE_EXCLUDES,
         ],
          capture_output=True,
-         text=True,
+         encoding="utf-8",
+         errors="replace",
          check=True,
     )
 
     findings: list[Finding] = []
 
-    for relative_path in result.stdout.splitlines():
+    for relative_path in result.stdout.split("\0"):
+        if not relative_path:
+            continue
+
         file_path = Path(repo_path) / relative_path
 
         try:
-            content = file_path.read_text(encoding='utf-8')
-        except (UnicodeDecodeError, OSError):
+            raw = file_path.read_bytes()
+        except OSError:
             continue
+
+        # Same rule git uses: a NUL byte near the start means binary. Anything
+        # else is text, even if it isn't valid UTF-8 (e.g. Latin-1 .properties).
+        if b"\0" in raw[:8000]:
+            continue
+
+        content = raw.decode("utf-8", errors="replace")
 
         findings.extend(
             scan_content(
@@ -44,14 +83,22 @@ def walk_history(repo_path: str) -> list[Finding]:
     result = subprocess.run(
         [
             "git",
+            # The scanned repo's own config must not be able to run commands.
+            "-c",
+            "core.fsmonitor=false",
             "-C",
             repo_path,
             "log",
             "-p",
             "--all",
+            "--no-textconv",
+            "--no-ext-diff",
+            *_LOCK_FILE_EXCLUDES,
         ],
         capture_output=True,
-        text=True,
+        # Git output is UTF-8; the platform default (cp1252 on Windows) isn't.
+        encoding="utf-8",
+        errors="replace",
         check=True,
     )
 

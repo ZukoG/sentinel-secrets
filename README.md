@@ -30,12 +30,15 @@ along with the commit that introduced it.
 | GitHub Token | HIGH | `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 36 characters |
 | Slack Token | HIGH | `xoxb-`, `xoxa-`, `xoxp-`, `xoxr-`, `xoxs-` tokens |
 | Generic Secret Assignment | MEDIUM | `api_key`, `secret`, `token`, or `password` assigned a quoted value of 16+ characters |
+| Unquoted Secret Assignment | MEDIUM | The same names assigned an unquoted value of 16+ characters mixing letters and digits, as in `.env` and `.properties` files |
 | High Entropy String | MEDIUM | Any token of 20+ characters scoring above 4.5 bits per character of Shannon entropy |
 
 Signatures catch known formats precisely. Entropy catches random-looking
-strings that no signature names, such as a raw API key with no prefix. When
-both flag the same value, only the signature match is reported. The
-reasoning behind this approach is in
+strings that no signature names, such as a raw API key with no prefix. Each
+secret is reported once, under its most specific rule. Dependency lock
+files (`package-lock.json`, `yarn.lock`, `poetry.lock`, and similar) are
+skipped, since their integrity hashes are random by design. The reasoning
+behind this approach is in
 [ADR 0001](docs/adr/0001-regex-and-entropy-over-ml-detection.md).
 
 ## Install
@@ -68,8 +71,8 @@ pip install -e .
 ## Usage
 
 ```
-sentinel-secrets [-h] [--baseline BASELINE] [--output {console,json}]
-                 [--history | --no-history]
+sentinel-secrets [-h] [--baseline BASELINE] [--update-baseline PATH]
+                 [--output {console,json}] [--history | --no-history]
                  repo_path
 ```
 
@@ -79,9 +82,12 @@ sentinel-secrets [-h] [--baseline BASELINE] [--output {console,json}]
 | `--history` / `--no-history` | `--history` | Include or skip scanning every commit's changes |
 | `--output` | `console` | `console` for a table, `json` for machine-readable output |
 | `--baseline` | none | JSON file of accepted findings to leave out of the results |
+| `--update-baseline` | none | Add every current finding to this baseline file and exit |
 
-**Exit codes:** `0` when no findings remain, `1` when any do, `2` for
-invalid arguments. That makes it usable as a gate in a CI pipeline.
+**Exit codes:** `0` when no findings remain, `1` when any do, `2` when the
+scan couldn't run (invalid arguments, a path that isn't a git repository,
+or `git` not installed). A failed scan never exits with `1`, so a CI gate
+can't mistake a typo for a secrets problem.
 
 ## Walkthrough
 
@@ -133,11 +139,14 @@ $ sentinel-secrets demo-repo --no-history --output json
 ]
 ```
 
-A repository with nothing to report:
+A repository with nothing to report, and a path that isn't a repository:
 
 ```
 $ sentinel-secrets clean-demo
 No findings.
+
+$ sentinel-secrets not-a-repo
+sentinel-secrets: error: fatal: not a git repository (or any of the parent directories): .git
 ```
 
 ## Accepting findings with a baseline
@@ -146,48 +155,41 @@ Some findings are false positives, or known and accepted. A baseline file
 records them so they stop being reported. It stores SHA-256 fingerprints
 only, never the secrets themselves.
 
-The CLI can read a baseline but can't write one yet
-([#18](https://github.com/ZukoG/sentinel-secrets/issues/18)). Until it can,
-create one with a few lines of Python. This example accepts every current
-Private Key Header finding:
-
-```python
-from sentinel_secrets.git_walker import walk_working_tree
-from sentinel_secrets.baseline import fingerprint, save_baseline
-
-accepted = [f for f in walk_working_tree("demo-repo") if f.rule_name == "Private Key Header"]
-save_baseline("baseline.json", {fingerprint(f) for f in accepted})
-```
-
-Then pass it in:
+After reviewing a scan, accept everything it currently reports:
 
 ```
-$ sentinel-secrets demo-repo --no-history --baseline baseline.json
+$ sentinel-secrets demo-repo --update-baseline baseline.json
+Added 7 finding(s) to baseline.json
+
+$ sentinel-secrets demo-repo --baseline baseline.json
+No findings.
+```
+
+From then on, only new secrets show up. After adding a file containing a
+Slack token:
+
+```
+$ sentinel-secrets demo-repo --baseline baseline.json
 SEVERITY   RULE                      SOURCE                         LINE   MATCHED
-HIGH       AWS Access Key ID         app/config.py                  2      AKIAIO...
-MEDIUM     Generic Secret Assignment app/settings.py                1      api_ke...
+HIGH       Slack Token               app/slack.py                   1      xoxb-2...
 ```
+
+Running `--update-baseline` again adds new findings and keeps the existing
+entries.
 
 ## Known limitations
 
-> **Only scan repositories you cloned yourself.** In v1.0.0, git reads the
-> scanned repository's own `.git/config`, and certain settings there can
-> make a scan run arbitrary commands. Cloning never copies that file, so a
-> fresh clone is safe; a repository folder received as-is (a zip, a shared
-> drive) may not be. Tracked in
-> [#17](https://github.com/ZukoG/sentinel-secrets/issues/17).
+All measured and written up in [THREAT_MODEL.md](docs/THREAT_MODEL.md):
 
-Other limitations, all measured against a real repository and written up in
-[THREAT_MODEL.md](docs/THREAT_MODEL.md):
-
-- **Unquoted secrets are missed.** `KEY=value` lines, the usual syntax in
-  `.properties` and `.env` files, don't match the generic signature
-  ([#15](https://github.com/ZukoG/sentinel-secrets/issues/15)).
-- **Entropy is noisy on real code.** On an existing codebase, expect a first
-  run to flag long paths, dotted identifiers, and lock file hashes. Baseline
-  them once ([#16](https://github.com/ZukoG/sentinel-secrets/issues/16)).
 - **Human-readable passwords and unknown token formats can slip through**
   when they match no signature and aren't random enough for entropy.
+- **Hex-encoded secrets aren't caught by entropy.** Hex scores at most 4
+  bits per character, under the 4.5 threshold.
+- **Deliberately hidden secrets aren't caught.** A secret split across
+  string concatenation or encoded on purpose is out of scope; this tool
+  targets accidental commits.
+- **Very large histories are held in memory** while being scanned. Tested
+  so far against a repository of around a hundred commits.
 
 ## How it works
 
@@ -203,7 +205,11 @@ cli.py ──> git_walker.py ──> scanner.py ──> baseline.py ──> repo
 
 1. `git_walker.py` asks git for the files to scan (`git ls-files
    --exclude-standard`, so `.gitignore` is respected by git itself) and for
-   every commit's diff (`git log -p --all`). Binary files are skipped.
+   every commit's diff (`git log -p --all`). Lock files are excluded, and a
+   file is only treated as binary if it contains a NUL byte, the same rule
+   git uses. Settings in the scanned repository's own git config that could
+   run a command are disabled, so scanning a repository someone hands you
+   can't execute anything.
 2. `scanner.py` checks each line against every signature, then checks the
    remaining tokens for high entropy, truncating anything it matches before
    creating a finding.

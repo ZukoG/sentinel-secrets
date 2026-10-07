@@ -29,14 +29,15 @@ library (`re`, `math`):
 
 1. **Regex signatures** (`patterns.py`) for secrets with a known format:
    AWS access key IDs, GitHub tokens, Slack tokens, PEM private key
-   headers, and a generic quoted `api_key`/`secret`/`token`/`password`
-   assignment. Each signature carries a name and a severity.
+   headers, and generic quoted and unquoted `api_key`/`secret`/`token`/`password`
+   assignments. Each signature carries a name and a severity.
 2. **Shannon entropy** (`entropy.py`) for everything a signature can't
    name: any token of 20 or more characters scoring above 4.5 bits per
    character gets flagged as a High Entropy String.
 
-When both flag the same value, only the signature match is reported, so
-one secret never appears twice. A baseline file absorbs the false
+Each secret is reported once: signatures run from most specific to most
+generic, a match overlapping one already reported is skipped, and entropy
+only looks at tokens no signature matched. A baseline file absorbs the false
 positives entropy inevitably produces, so they're triaged once rather than
 on every run.
 
@@ -75,30 +76,35 @@ learning.
 
 - Detection runs fully offline with no dependencies, and each finding has
   a clear rule name and severity.
-- Every rule is deterministic and tested directly with plain strings, 45
+- Every rule is deterministic and tested directly with plain strings, 65
   tests across Python 3.11 to 3.14 in CI.
 - Adding coverage for a new token format is a single new `Signature`
-  entry and a pair of tests.
-- Fast: a real repository with 106 commits and 92 files scanned in 3.7
+  entry and a pair of tests. Closing the unquoted-assignment gap (T-2) took
+  exactly that.
+- Fast: a real repository with 106 commits and 92 files scanned in 1.3
   seconds.
 
 **Negative**, measured against a real repository and recorded in
 [THREAT_MODEL.md](../THREAT_MODEL.md):
 
-- **Gaps in signature coverage go unnoticed.** A secret format with no
-  signature and modest entropy is simply missed (T-3). The quoted-only
-  generic signature already misses unquoted `.properties`/`.env` values
-  (T-2, [#15](https://github.com/ZukoG/sentinel-secrets/issues/15)).
-- **Entropy is noisy on real code.** The same scan produced 125 entropy
-  findings and no real secrets (T-5,
-  [#16](https://github.com/ZukoG/sentinel-secrets/issues/16)). The baseline
-  keeps this manageable, but a first run on an existing codebase needs
-  triage.
+- **Gaps in signature coverage go unnoticed until someone looks.** A secret
+  format with no signature and modest entropy is simply missed (T-3). The
+  first version missed unquoted `.properties`/`.env` values entirely, which
+  only came to light by scanning a real repository (T-2, fixed in
+  [#15](https://github.com/ZukoG/sentinel-secrets/issues/15)).
+- **Entropy needs tuning against real code, not just test strings.** The
+  first version produced 125 entropy findings on that repository and no
+  real secrets, because dotted identifiers and shell paths read as random
+  tokens. Splitting on `.` and `$` and excluding lock files brought that to
+  zero (T-5, [#16](https://github.com/ZukoG/sentinel-secrets/issues/16)),
+  at the cost of no longer catching bcrypt hashes by accident.
+- **Hex secrets are invisible to entropy.** Hex tops out at 4 bits per
+  character, so a random hex key never reaches the 4.5 threshold (T-3).
 - **The thresholds are judgment calls.** 4.5 bits and 20 characters sit
   between ordinary English (a test sentence measured 4.32) and base64-like
   randomness (up to 6), but no single threshold separates secrets from
   non-secrets cleanly. A human-readable secret measured 4.33, almost
-  identical to that English sentence, which is exactly why T-2 slips
-  through.
+  identical to that English sentence, which is why T-2 needed a signature
+  rather than a lower threshold.
   Both are function parameters, so they can be tuned without changing the
   approach.
