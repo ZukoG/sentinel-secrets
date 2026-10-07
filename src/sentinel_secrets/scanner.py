@@ -10,7 +10,10 @@ def _truncate(value: str, keep: int = 6) -> str:
     return value[:keep] + "..."
 
 def _extract_tokens(line: str) -> list[str]:
-    tokens = re.split(r"[\s'\"=:,;()\[\]{}]+", line)
+    # "." and "$" split dotted identifiers and shell variables into words.
+    # "/" is deliberately not a separator: base64 secrets (e.g. AWS secret
+    # access keys) contain it and would fall apart into short pieces.
+    tokens = re.split(r"[\s'\"=:,;()\[\]{}.$]+", line)
 
     return [token for token in tokens if token]
 
