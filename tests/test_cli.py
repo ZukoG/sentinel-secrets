@@ -6,7 +6,7 @@ import pytest
 
 from sentinel_secrets.cli import main
 from sentinel_secrets.git_walker import walk_working_tree, walk_history
-from sentinel_secrets.baseline import fingerprint, save_baseline
+from sentinel_secrets.baseline import fingerprint, load_baseline, save_baseline
 
 
 def _run_git(repo, *args):
@@ -175,3 +175,28 @@ def test_non_repository_exits_2_with_message(isolated_tmp_path, capsys):
 
     assert main([str(plain_dir)]) == 2
     assert "not a git repository" in capsys.readouterr().err
+
+
+def test_update_baseline_then_scan_is_clean(
+    repo_with_secrets,
+    tmp_path,
+    capsys,
+):
+    baseline_path = str(tmp_path / "baseline.json")
+
+    assert main([repo_with_secrets, "--update-baseline", baseline_path]) == 0
+    assert "Added 3 finding(s)" in capsys.readouterr().out
+
+    assert main([repo_with_secrets, "--update-baseline", baseline_path]) == 0
+    assert "Added 0 finding(s)" in capsys.readouterr().out
+
+    assert main([repo_with_secrets, "--baseline", baseline_path]) == 0
+
+
+def test_update_baseline_keeps_existing_entries(repo_with_secrets, tmp_path):
+    baseline_path = str(tmp_path / "baseline.json")
+    save_baseline(baseline_path, {"existing-entry"})
+
+    main([repo_with_secrets, "--update-baseline", baseline_path])
+
+    assert "existing-entry" in load_baseline(baseline_path)
