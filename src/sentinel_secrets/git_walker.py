@@ -3,6 +3,28 @@ from pathlib import Path
 
 from .scanner import Finding, scan_content
 
+# Dependency lock files are full of integrity hashes, random by design, which
+# would otherwise flood every scan with entropy findings.
+LOCK_FILES = (
+    ".terraform.lock.hcl",
+    "Cargo.lock",
+    "Gemfile.lock",
+    "Pipfile.lock",
+    "composer.lock",
+    "go.sum",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "uv.lock",
+    "yarn.lock",
+)
+
+_LOCK_FILE_EXCLUDES = [
+    "--",
+    ".",
+    *(f":(exclude,glob)**/{name}" for name in LOCK_FILES),
+]
+
 def walk_working_tree(repo_path: str) -> list[Finding]:
     result = subprocess.run(
          [
@@ -18,6 +40,7 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
             "--cached",
             "--others",
             "--exclude-standard",
+            *_LOCK_FILE_EXCLUDES,
         ],
          capture_output=True,
          encoding="utf-8",
@@ -70,6 +93,7 @@ def walk_history(repo_path: str) -> list[Finding]:
             "--all",
             "--no-textconv",
             "--no-ext-diff",
+            *_LOCK_FILE_EXCLUDES,
         ],
         capture_output=True,
         # Git output is UTF-8; the platform default (cp1252 on Windows) isn't.
