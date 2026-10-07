@@ -212,3 +212,30 @@ def test_working_tree_scans_text_that_is_not_utf8(tmp_path) -> None:
     findings = walk_working_tree(repo)
 
     assert [finding.source for finding in findings] == ["app.properties"]
+
+
+def test_lock_files_are_excluded_at_any_depth(tmp_path) -> None:
+    repo_path = tmp_path / "repo"
+    repo = _init_repo(repo_path)
+    integrity_hash = "sha512-kJ8x9QeqWM3vLpN2Rt7YbHcZ4FgAsDwU\n"
+
+    (repo_path / "yarn.lock").write_text(integrity_hash, encoding="utf-8")
+    (repo_path / "web").mkdir()
+    (repo_path / "web" / "package-lock.json").write_text(
+        integrity_hash,
+        encoding="utf-8",
+    )
+    (repo_path / "config.py").write_text(
+        "aws_key = AKIAIOSFODNN7EXAMPLE\n",
+        encoding="utf-8",
+    )
+    _run_git("add", "-A", cwd=repo)
+    _run_git("commit", "-m", "add files", cwd=repo)
+
+    tree_findings = walk_working_tree(repo)
+    history_findings = walk_history(repo)
+
+    assert [finding.source for finding in tree_findings] == ["config.py"]
+    assert [finding.rule_name for finding in history_findings] == [
+        "AWS Access Key ID",
+    ]
