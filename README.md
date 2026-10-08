@@ -1,18 +1,23 @@
 # sentinel-secrets
 
 [![CI](https://github.com/ZukoG/sentinel-secrets/actions/workflows/ci.yml/badge.svg)](https://github.com/ZukoG/sentinel-secrets/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/ZukoG/sentinel-secrets)](https://github.com/ZukoG/sentinel-secrets/releases/latest)
 
-A command-line tool I built to scan a git repository, both its current
+🔐 A command-line tool I built to scan a git repository, both its current
 files and its full commit history, for secrets that shouldn't be there:
 API keys, access tokens, private keys, and other credentials committed by
 accident.
 
 It's passive and read-only. It reads files and git history on disk and
-reports what it finds. It never sends anything over the network, never
-tries to check whether a found key is live, and never modifies the
-repository it scans.
+reports what it finds:
 
-## Why history matters
+- 📴 It never sends anything over the network
+- 🚫 It never tries to check whether a found key is live
+- 🔒 It never modifies the repository it scans
+
+## 🕰️ Why history matters
 
 Deleting a committed secret doesn't remove it. The file disappears from
 the working tree, but the commit that added it is still in the history,
@@ -21,17 +26,17 @@ sentinel-secrets scans every commit's changes as well as the current files:
 a token added in one commit and removed in the next is still reported,
 along with the commit that introduced it.
 
-## What it detects
+## 🔍 What it detects
 
 | Rule | Severity | How |
 |---|---|---|
-| Private Key Header | CRITICAL | PEM headers such as `-----BEGIN RSA PRIVATE KEY-----` |
-| AWS Access Key ID | HIGH | `AKIA` followed by 16 uppercase letters or digits |
-| GitHub Token | HIGH | `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 36 characters |
-| Slack Token | HIGH | `xoxb-`, `xoxa-`, `xoxp-`, `xoxr-`, `xoxs-` tokens |
-| Generic Secret Assignment | MEDIUM | `api_key`, `secret`, `token`, or `password` assigned a quoted value of 16+ characters |
-| Unquoted Secret Assignment | MEDIUM | The same names assigned an unquoted value of 16+ characters mixing letters and digits, as in `.env` and `.properties` files |
-| High Entropy String | MEDIUM | Any token of 20+ characters scoring above 4.5 bits per character of Shannon entropy |
+| Private Key Header | 🔴 CRITICAL | PEM headers such as `-----BEGIN RSA PRIVATE KEY-----` |
+| AWS Access Key ID | 🟠 HIGH | `AKIA` followed by 16 uppercase letters or digits |
+| GitHub Token | 🟠 HIGH | `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 36 characters |
+| Slack Token | 🟠 HIGH | `xoxb-`, `xoxa-`, `xoxp-`, `xoxr-`, `xoxs-` tokens |
+| Generic Secret Assignment | 🟡 MEDIUM | `api_key`, `secret`, `token`, or `password` assigned a quoted value of 16+ characters |
+| Unquoted Secret Assignment | 🟡 MEDIUM | The same names assigned an unquoted value of 16+ characters mixing letters and digits, as in `.env` and `.properties` files |
+| High Entropy String | 🟡 MEDIUM | Any token of 20+ characters scoring above 4.5 bits per character of Shannon entropy |
 
 Signatures catch known formats precisely. Entropy catches random-looking
 strings that no signature names, such as a raw API key with no prefix. Each
@@ -41,7 +46,7 @@ skipped, since their integrity hashes are random by design. The reasoning
 behind this approach is in
 [ADR 0001](docs/adr/0001-regex-and-entropy-over-ml-detection.md).
 
-## Install
+## 📦 Install
 
 Requires Python 3.11 or newer and `git` on your `PATH`. There are no
 runtime dependencies.
@@ -68,7 +73,7 @@ Then install:
 pip install -e .
 ```
 
-## Usage
+## 🚀 Usage
 
 ```
 sentinel-secrets [-h] [--baseline BASELINE] [--update-baseline PATH]
@@ -84,12 +89,17 @@ sentinel-secrets [-h] [--baseline BASELINE] [--update-baseline PATH]
 | `--baseline` | none | JSON file of accepted findings to leave out of the results |
 | `--update-baseline` | none | Add every current finding to this baseline file and exit |
 
-**Exit codes:** `0` when no findings remain, `1` when any do, `2` when the
-scan couldn't run (invalid arguments, a path that isn't a git repository,
-or `git` not installed). A failed scan never exits with `1`, so a CI gate
-can't mistake a typo for a secrets problem.
+**Exit codes:**
 
-## Walkthrough
+- ✅ `0` when no findings remain
+- ❌ `1` when any do
+- ⚠️ `2` when the scan couldn't run (invalid arguments, a path that isn't a
+  git repository, or `git` not installed)
+
+A failed scan never exits with `1`, so a CI gate can't mistake a typo for a
+secrets problem.
+
+## 💻 Walkthrough
 
 These are real runs against a small demo repository: three files with
 secrets in them, plus a GitHub token that was committed and then deleted
@@ -149,7 +159,7 @@ $ sentinel-secrets not-a-repo
 sentinel-secrets: error: fatal: not a git repository (or any of the parent directories): .git
 ```
 
-## Accepting findings with a baseline
+## ✅ Accepting findings with a baseline
 
 Some findings are false positives, or known and accepted. A baseline file
 records them so they stop being reported. It stores SHA-256 fingerprints
@@ -177,7 +187,7 @@ HIGH       Slack Token               app/slack.py                   1      xoxb-
 Running `--update-baseline` again adds new findings and keeps the existing
 entries.
 
-## Known limitations
+## ⚠️ Known limitations
 
 All measured and written up in [THREAT_MODEL.md](docs/THREAT_MODEL.md):
 
@@ -191,7 +201,7 @@ All measured and written up in [THREAT_MODEL.md](docs/THREAT_MODEL.md):
 - **Very large histories are held in memory** while being scanned. Tested
   so far against a repository of around a hundred commits.
 
-## How it works
+## ⚙️ How it works
 
 ```
 cli.py ──> git_walker.py ──> scanner.py ──> baseline.py ──> report.py
@@ -216,7 +226,7 @@ cli.py ──> git_walker.py ──> scanner.py ──> baseline.py ──> repo
 3. `baseline.py` drops findings whose fingerprint is already accepted.
 4. `report.py` prints the rest as a table or as JSON.
 
-## Development
+## 🛠️ Development
 
 ```bash
 pip install -e ".[dev]"
@@ -228,16 +238,16 @@ CI runs on every pull request and push to `main`: the test suite on Python
 static analysis, and [pip-audit](https://pypi.org/project/pip-audit/) for
 dependency vulnerabilities.
 
-## Documentation
+## 📚 Documentation
 
-- [Software Requirements Specification](docs/SRS.md)
-- [Threat Model](docs/THREAT_MODEL.md)
-- [ADR 0001: Regex signatures plus entropy analysis over ML-based detection](docs/adr/0001-regex-and-entropy-over-ml-detection.md)
+- 📋 [Software Requirements Specification](docs/SRS.md)
+- 🛡️ [Threat Model](docs/THREAT_MODEL.md)
+- 🧭 [ADR 0001: Regex signatures plus entropy analysis over ML-based detection](docs/adr/0001-regex-and-entropy-over-ml-detection.md)
 
 Companion project to
 [sentinel-secscan](https://github.com/ZukoG/sentinel-secscan), a passive web
 security assessment platform.
 
-## License
+## 📄 License
 
 [MIT](LICENSE)
