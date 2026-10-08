@@ -19,7 +19,7 @@ reports what it finds:
 
 ## 📑 Contents
 
-- [🕰️ Why history matters](#️-why-history-matters)
+- [⏳ Why history matters](#-why-history-matters)
 - [🔍 What it detects](#-what-it-detects)
 - [🏁 Getting started](#-getting-started)
   - [Step 1: Open a terminal](#step-1-open-a-terminal)
@@ -33,13 +33,13 @@ reports what it finds:
 - [💻 Walkthrough](#-walkthrough)
 - [✅ Accepting findings with a baseline](#-accepting-findings-with-a-baseline)
 - [🩹 Troubleshooting](#-troubleshooting)
-- [⚠️ Known limitations](#️-known-limitations)
-- [⚙️ How it works](#️-how-it-works)
-- [🛠️ Development](#️-development)
+- [🚧 Known limitations](#-known-limitations)
+- [🔧 How it works](#-how-it-works)
+- [🧰 Development](#-development)
 - [📚 Documentation](#-documentation)
 - [📄 License](#-license)
 
-## 🕰️ Why history matters
+## ⏳ Why history matters
 
 Deleting a committed secret doesn't remove it. The file disappears from
 the working tree, but the commit that added it is still in the history,
@@ -491,7 +491,7 @@ Then continue from `source .venv/bin/activate` in
 
 <sub>[⬆️ Back to contents](#-contents)</sub>
 
-## ⚠️ Known limitations
+## 🚧 Known limitations
 
 All measured and written up in [THREAT_MODEL.md](docs/THREAT_MODEL.md):
 
@@ -507,7 +507,7 @@ All measured and written up in [THREAT_MODEL.md](docs/THREAT_MODEL.md):
 
 <sub>[⬆️ Back to contents](#-contents)</sub>
 
-## ⚙️ How it works
+## 🔧 How it works
 
 ```
 cli.py ──> git_walker.py ──> scanner.py ──> baseline.py ──> report.py
@@ -534,7 +534,7 @@ cli.py ──> git_walker.py ──> scanner.py ──> baseline.py ──> repo
 
 <sub>[⬆️ Back to contents](#-contents)</sub>
 
-## 🛠️ Development
+## 🧰 Development
 
 With the virtual environment switched on (see
 [Step 4](#step-4-set-it-up)), install the test tools and run the tests.
