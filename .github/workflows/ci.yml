@@ -74,3 +74,71 @@ jobs:
       - name: Run pip-audit
         continue-on-error: true
         run: pip-audit --skip-editable
+
+  # Runs the README's "Getting started" commands as written, on each OS, so
+  # the setup instructions can't silently stop working.
+  getting-started:
+    name: getting started (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Follow the README (macOS and Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -e .
+          case "$(command -v sentinel-secrets)" in
+            "$VIRTUAL_ENV"/*) ;;
+            *) echo "sentinel-secrets is not running from .venv"; exit 1 ;;
+          esac
+
+          demo="$RUNNER_TEMP/my-project"
+          git init -q "$demo"
+          echo "aws_key = AKIAIOSFODNN7EXAMPLE" > "$demo/config.py"
+          git -C "$demo" add -A
+          git -C "$demo" -c user.name=ci -c user.email=ci@example.com commit -q -m demo
+
+          set +e
+          output="$(sentinel-secrets "$demo")"
+          code=$?
+          set -e
+          echo "$output"
+          test "$code" -eq 1
+          echo "$output" | grep -q "AWS Access Key ID"
+
+      # Windows PowerShell 5.1, the one the README tells Windows users to open.
+      - name: Follow the README (Windows PowerShell)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          python -m venv .venv
+          .venv\Scripts\Activate.ps1
+          pip install -e .
+          if (-not (Get-Command sentinel-secrets).Source.StartsWith($env:VIRTUAL_ENV)) {
+            Write-Output "sentinel-secrets is not running from .venv"
+            exit 1
+          }
+
+          $demo = Join-Path $env:RUNNER_TEMP "my-project"
+          git init -q $demo
+          Set-Content -Path (Join-Path $demo "config.py") -Value "aws_key = AKIAIOSFODNN7EXAMPLE"
+          git -C $demo add -A
+          git -C $demo -c user.name=ci -c user.email=ci@example.com commit -q -m demo
+
+          $output = sentinel-secrets $demo
+          $code = $LASTEXITCODE
+          $output
+          if ($code -ne 1 -or -not ($output -match "AWS Access Key ID")) { exit 1 }
+          exit 0
