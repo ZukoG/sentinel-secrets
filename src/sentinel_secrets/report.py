@@ -6,12 +6,20 @@ def format_console(findings: list[Finding]) -> str:
     if not findings:
         return 'No findings.'
 
-    header = f"{'SEVERITY':<10} {'RULE':<25} {'SOURCE':<30} {'LINE':<6} {'MATCHED'}"
+    # Widen RULE and SOURCE to their longest value so long rule names and
+    # paths can't push the later columns out of line.
+    rule_width = max(25, *(len(finding.rule_name) for finding in findings))
+    source_width = max(30, *(len(finding.source) for finding in findings))
+
+    header = (
+        f"{'SEVERITY':<10} {'RULE':<{rule_width}} "
+        f"{'SOURCE':<{source_width}} {'LINE':<6} {'MATCHED'}"
+    )
 
     rows = [
         f"{finding.severity.value:<10} "
-        f"{finding.rule_name:<25} "
-        f"{finding.source:<30} "
+        f"{finding.rule_name:<{rule_width}} "
+        f"{finding.source:<{source_width}} "
         f"{finding.line_number:<6} "
         f"{finding.matched_text}"
         for finding in findings
