@@ -63,3 +63,29 @@ def test_format_json_empty_findings():
     output = format_json([])
 
     assert json.loads(output) == []
+
+
+def test_format_console_stays_aligned_with_long_rule_names_and_paths():
+    findings = [
+        make_finding(),
+        Finding(
+            source="src/main/resources/application.properties",
+            line_number=16,
+            rule_name="Unquoted Secret Assignment",
+            severity=Severity.MEDIUM,
+            matched_text="SECRET...",
+        ),
+    ]
+
+    lines = format_console(findings).splitlines()
+    markers = ["MATCHED", "AKIA1234...", "SECRET..."]
+
+    assert len({line.index(marker) for line, marker in zip(lines, markers)}) == 1
+
+
+def test_format_console_keeps_default_widths_when_values_fit():
+    header = format_console([make_finding()]).splitlines()[0]
+
+    assert header == (
+        f"{'SEVERITY':<10} {'RULE':<25} {'SOURCE':<30} {'LINE':<6} {'MATCHED'}"
+    )
