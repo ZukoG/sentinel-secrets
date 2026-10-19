@@ -214,7 +214,7 @@ pip install -e .
 ```
 
 ✅ **It worked if** your terminal line now starts with `(.venv)` and you see
-`Successfully installed sentinel-secrets-1.0.0`. A notice afterwards about
+`Successfully installed sentinel-secrets-1.0.1`. A notice afterwards about
 a new version of pip being available is normal and safe to ignore.
 
 ### Step 5: Run your first scan
