@@ -567,4 +567,6 @@ security assessment platform.
 
 [MIT](LICENSE)
 
+WeThinkCode_ project verification: WTC-HG7LTR76
+
 <sub>[⬆️ Back to contents](#-contents)</sub>
