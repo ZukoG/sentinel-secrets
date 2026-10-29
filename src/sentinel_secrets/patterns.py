@@ -38,6 +38,16 @@ SIGNATURES: list[Signature] = [
     ),
 
     Signature(
+        name="Stripe Secret Key",
+        regex=re.compile(r"\b(?:sk_live_|rk_live_)[A-Za-z0-9]{24,}\b"),
+        severity=Severity.HIGH,
+        description=(
+            "Matches live Stripe secret and restricted API keys; "
+            "test-mode keys are excluded because they cannot move real money."
+        ),
+    ),
+
+    Signature(
             name='Private Key Header',
             regex=re.compile(r"-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----"),
             severity=Severity.CRITICAL,
