@@ -33,6 +33,20 @@ def test_known_secret_is_not_double_reported_by_generic_signature() -> None:
 
     assert [finding.rule_name for finding in findings] == ["GitHub Token"]
 
+def test_stripe_secret_is_not_double_reported_by_generic_signature():
+    content = (
+        'stripe_secret = "'
+        + "sk_"
+        + "live_"
+        + "a1B2" * 6
+        + '"'
+    )
+
+    findings = scan_content(content, "config.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_name == "Stripe Secret Key"
+
 
 def test_multiple_secrets_on_different_lines() -> None:
     text = (
