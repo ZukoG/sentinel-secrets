@@ -12,6 +12,8 @@ def _signature(name: str) -> Signature:
         ("AWS Access Key ID", "aws_key = AKIAIOSFODNN7PUEXAMPLE"),
         ("GitHub Token", "token: " + "ghp_" + "a" * 36),
         ("Slack Token", "xoxb-1234567890abcdef"),
+        ("Stripe Secret Key", "STRIPE_KEY=" + "sk_" + "live_" + "a1B2" * 6),
+        ("Stripe Secret Key", "STRIPE_KEY=" + "rk_" + "live_" + "a1B2" * 6),
         ("Private Key Header", "-----BEGIN RSA PRIVATE KEY-----"),
         ("Generic Secret Assignment", 'api_key = "abcdefghijklmnopqrstuvwx"'),
         (
@@ -34,6 +36,22 @@ def test_signatures_match_real_examples(signature_name: str, text: str) -> None:
         ("AWS Access Key ID", "this sentence has no key in it"),
         ("GitHub Token", "ghp_tooshort"),
         ("Slack Token", "xoxb-short"),
+        (
+            "Stripe Secret Key",
+            "STRIPE_KEY=" + "sk_" + "test_" + "a1B2" * 6,
+        ),
+        (
+            "Stripe Secret Key",
+            "STRIPE_KEY=" + "pk_" + "live_" + "a1B2" * 6,
+        ),
+        (
+            "Stripe Secret Key",
+            "STRIPE_KEY=" + "sk_" + "live_" + "abc123",
+        ),
+        (
+            "Stripe Secret Key",
+            "just some ordinary text with no key",
+        ),
         ("Private Key Header", "-----BEGIN RSA KEY-----"),
         ("Generic Secret Assignment", 'api_key = "short"'),
         ("Unquoted Secret Assignment", "token = get_token_from_environment()"),
