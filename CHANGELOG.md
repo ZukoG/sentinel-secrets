@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A signature for Stripe live secret keys (`sk_live_`) and restricted
+  keys (`rk_live_`), at HIGH severity. Test-mode keys are not reported,
+  since they cannot touch real payments
+  ([#43](https://github.com/ZukoG/sentinel-secrets/issues/43)).
 - `SECURITY.md`: a security policy covering supported versions, how to
   report a vulnerability privately through GitHub's reporting form, and
   what counts as a vulnerability in this tool
@@ -15,8 +19,6 @@ project uses [Semantic Versioning](https://semver.org/).
 - Dependabot configuration: weekly pull requests when the GitHub Actions
   in CI or the Python dev tools (pytest, bandit, pip-audit) fall behind
   ([#37](https://github.com/ZukoG/sentinel-secrets/issues/37)).
-
-Detection behaviour is unchanged from 1.0.1.
 
 ## [1.0.1] - 2026-10-19
 
