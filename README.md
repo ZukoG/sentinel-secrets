@@ -58,6 +58,7 @@ along with the commit that introduced it.
 | AWS Access Key ID | 🟠 HIGH | `AKIA` followed by 16 uppercase letters or digits |
 | GitHub Token | 🟠 HIGH | `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 36 characters |
 | Slack Token | 🟠 HIGH | `xoxb-`, `xoxa-`, `xoxp-`, `xoxr-`, `xoxs-` tokens |
+| Stripe Secret Key | 🟠 HIGH | `sk_live_` or `rk_live_` followed by 24+ letters or digits (test-mode `sk_test_` keys are ignored) |
 | Generic Secret Assignment | 🟡 MEDIUM | `api_key`, `secret`, `token`, or `password` assigned a quoted value of 16+ characters |
 | Unquoted Secret Assignment | 🟡 MEDIUM | The same names assigned an unquoted value of 16+ characters mixing letters and digits, as in `.env` and `.properties` files |
 | High Entropy String | 🟡 MEDIUM | Any token of 20+ characters scoring above 4.5 bits per character of Shannon entropy |
