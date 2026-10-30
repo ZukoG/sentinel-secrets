@@ -1,6 +1,6 @@
 # Software Requirements Specification: sentinel-secrets
 
-Version 1.0.0
+Version 1.1.0
 
 ## 1. Purpose
 
@@ -39,7 +39,7 @@ down to a single week and a single concern.
 
 | ID | Requirement |
 |---|---|
-| FR-1 | The tool shall detect known secret formats in scanned content using named regex signatures: AWS access key IDs, GitHub tokens, Slack tokens, PEM private key headers, and quoted or unquoted assignments to names like `api_key`, `secret`, `token`, or `password`. |
+| FR-1 | The tool shall detect known secret formats in scanned content using named regex signatures: AWS access key IDs, GitHub tokens, Slack tokens, Stripe live secret and restricted keys, PEM private key headers, and quoted or unquoted assignments to names like `api_key`, `secret`, `token`, or `password`. |
 | FR-2 | The tool shall flag high-entropy strings that don't match a known signature. A token is flagged when it is at least 20 characters long and scores above 4.5 bits per character. Lines are split into tokens on whitespace, quotes, brackets, and assignment punctuation, plus `.` and `$`, so dotted identifiers and shell variables are scored as separate words. Both thresholds are parameters of `is_high_entropy` but are not exposed as CLI flags in v1.0.0. |
 | FR-3 | The tool shall scan every file in the working tree that git does not ignore, including untracked files and files with non-ASCII names, respecting `.gitignore`. A file is treated as binary and skipped only if it contains a NUL byte near the start, the same rule git uses; any other file is scanned as text, even if it isn't valid UTF-8. |
 | FR-4 | The tool shall scan the full commit history by walking each commit's added lines, so a secret committed and later removed is still caught. |
