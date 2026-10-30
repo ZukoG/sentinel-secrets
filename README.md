@@ -559,6 +559,8 @@ dependency vulnerabilities.
 - 📋 [Software Requirements Specification](docs/SRS.md)
 - 🛡️ [Threat Model](docs/THREAT_MODEL.md)
 - 🧭 [ADR 0001: Regex signatures plus entropy analysis over ML-based detection](docs/adr/0001-regex-and-entropy-over-ml-detection.md)
+- 🔐 [Security Policy](SECURITY.md): how to report a vulnerability privately
+- 📝 [Changelog](CHANGELOG.md): what changed in each release
 
 Companion project to
 [sentinel-secscan](https://github.com/ZukoG/sentinel-secscan), a passive web
