@@ -6,6 +6,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-30
+
 ### Added
 
 - A signature for Stripe live secret keys (`sk_live_`) and restricted
@@ -19,6 +21,15 @@ project uses [Semantic Versioning](https://semver.org/).
 - Dependabot configuration: weekly pull requests when the GitHub Actions
   in CI or the Python dev tools (pytest, bandit, pip-audit) fall behind
   ([#37](https://github.com/ZukoG/sentinel-secrets/issues/37)).
+- Links to the security policy and this changelog from the README
+  ([#45](https://github.com/ZukoG/sentinel-secrets/issues/45)).
+
+### Fixed
+
+- `sentinel_secrets.__version__` reported 0.1.0 instead of the real
+  version. It is now read from the package metadata, so it always matches
+  `pyproject.toml`
+  ([#46](https://github.com/ZukoG/sentinel-secrets/issues/46)).
 
 ## [1.0.1] - 2026-10-19
 
@@ -92,6 +103,7 @@ git repository, in both its current files and its full commit history.
 - One secret could be reported twice
   ([#24](https://github.com/ZukoG/sentinel-secrets/issues/24)).
 
-[Unreleased]: https://github.com/ZukoG/sentinel-secrets/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/ZukoG/sentinel-secrets/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ZukoG/sentinel-secrets/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/ZukoG/sentinel-secrets/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/ZukoG/sentinel-secrets/releases/tag/v1.0.0
