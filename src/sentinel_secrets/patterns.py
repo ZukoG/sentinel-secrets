@@ -1,8 +1,12 @@
+"""The named regex signatures that recognise known secret formats."""
+
 import re
 from enum import Enum
 from dataclasses import dataclass
 
 class Severity(Enum):
+    """How serious a finding is, from LOW to CRITICAL."""
+
     LOW = 'LOW'
     MEDIUM = 'MEDIUM'
     HIGH = 'HIGH'
@@ -10,11 +14,16 @@ class Severity(Enum):
 
 @dataclass(frozen=True)
 class Signature:
+    """A named regex for one secret format, with its severity and why it was chosen."""
+
     name: str
     regex: re.Pattern
     severity: Severity
     description: str
 
+# Ordered from most specific to most generic. The scanner skips any match
+# that overlaps an earlier one, so a known format is reported under its own
+# name rather than as a generic secret.
 SIGNATURES: list[Signature] = [
     Signature(
         name='AWS Access Key ID',

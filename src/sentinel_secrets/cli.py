@@ -1,3 +1,5 @@
+"""Command-line entry point: reads the arguments, runs the scan, and prints the report."""
+
 import argparse
 import subprocess
 import sys
@@ -7,6 +9,7 @@ from .baseline import filter_findings, fingerprint, load_baseline, save_baseline
 from .report import format_console, format_json
 
 def build_parser() -> argparse.ArgumentParser:
+    """Define the command-line arguments sentinel-secrets accepts."""
     parser = argparse.ArgumentParser(
         prog='sentinel-secrets',
         description='Scan a Git repository for exposed secrets.',
@@ -59,11 +62,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _error(message: str) -> int:
+    """Print an error message and return exit code 2, meaning the scan could not run."""
     print(f'sentinel-secrets: error: {message}', file=sys.stderr)
     return 2
 
 
 def _use_utf8_output() -> None:
+    """Make printed output UTF-8, so any file name can be shown."""
+
     # Redirected output otherwise uses the platform encoding (cp1252 on
     # Windows), which can't represent every filename a finding can name.
     for stream in (sys.stdout, sys.stderr):
@@ -72,6 +78,11 @@ def _use_utf8_output() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run a scan and return the exit code: 0 clean, 1 findings, 2 error.
+
+    With --update-baseline, the current findings are added to the baseline
+    file instead of being reported.
+    """
     _use_utf8_output()
     args = build_parser().parse_args(argv)
 

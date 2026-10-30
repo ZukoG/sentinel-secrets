@@ -1,3 +1,5 @@
+"""Reads a git repository's current files and full history, and scans both for secrets."""
+
 import subprocess
 from pathlib import Path
 
@@ -19,6 +21,7 @@ LOCK_FILES = (
     "yarn.lock",
 )
 
+# Extra git arguments that skip every lock file above, in any folder.
 _LOCK_FILE_EXCLUDES = [
     "--",
     ".",
@@ -26,6 +29,11 @@ _LOCK_FILE_EXCLUDES = [
 ]
 
 def walk_working_tree(repo_path: str) -> list[Finding]:
+    """Scan every file in the repository that git does not ignore.
+
+    Binary files and lock files are skipped. Each finding's source is the
+    file's path inside the repository.
+    """
     result = subprocess.run(
          [
             "git",
@@ -80,6 +88,12 @@ def walk_working_tree(repo_path: str) -> list[Finding]:
 
 
 def walk_history(repo_path: str) -> list[Finding]:
+    """Scan every line that any commit on any branch has ever added.
+
+    This finds secrets that were committed and later deleted. Each finding's
+    source is the commit that added the line (the first 8 characters of its
+    hash).
+    """
     result = subprocess.run(
         [
             "git",
@@ -107,6 +121,7 @@ def walk_history(repo_path: str) -> list[Finding]:
     added_lines: list[str] = []
 
     def flush_commit() -> None:
+        """Scan the lines collected for the current commit, then start a fresh list."""
         nonlocal added_lines
 
         if current_commit is None or not added_lines:
