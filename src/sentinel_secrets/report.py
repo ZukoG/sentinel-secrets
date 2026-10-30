@@ -1,8 +1,11 @@
+"""Turns a list of findings into the console table or the JSON output."""
+
 import json
 
 from .scanner import Finding
 
 def format_console(findings: list[Finding]) -> str:
+    """Format findings as a table for the terminal, or "No findings." if there are none."""
     if not findings:
         return 'No findings.'
 
@@ -28,6 +31,7 @@ def format_console(findings: list[Finding]) -> str:
     return '\n'.join([header] + rows)
 
 def format_json(findings: list[Finding]) -> str:
+    """Format findings as a JSON array with one object per finding."""
     data = [
         {
             "source": finding.source,
