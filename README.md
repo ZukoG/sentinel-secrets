@@ -215,7 +215,7 @@ pip install -e .
 ```
 
 ✅ **It worked if** your terminal line now starts with `(.venv)` and you see
-`Successfully installed sentinel-secrets-1.0.1`. A notice afterwards about
+`Successfully installed sentinel-secrets-1.1.0`. A notice afterwards about
 a new version of pip being available is normal and safe to ignore.
 
 ### Step 5: Run your first scan
@@ -559,6 +559,8 @@ dependency vulnerabilities.
 - 📋 [Software Requirements Specification](docs/SRS.md)
 - 🛡️ [Threat Model](docs/THREAT_MODEL.md)
 - 🧭 [ADR 0001: Regex signatures plus entropy analysis over ML-based detection](docs/adr/0001-regex-and-entropy-over-ml-detection.md)
+- 🔐 [Security Policy](SECURITY.md): how to report a vulnerability privately
+- 📝 [Changelog](CHANGELOG.md): what changed in each release
 
 Companion project to
 [sentinel-secscan](https://github.com/ZukoG/sentinel-secscan), a passive web

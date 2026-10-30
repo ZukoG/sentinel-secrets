@@ -8,8 +8,8 @@ find one, I would like to hear about it privately first.
 
 | Version | Supported |
 |---|---|
-| 1.0.x | Yes, fixes are released as 1.0.x patch versions |
-| Earlier than 1.0.0 | No |
+| 1.1.x | Yes, fixes are released as 1.1.x patch versions |
+| Earlier than 1.1.0 | No, please upgrade to the latest release |
 
 ## Reporting a vulnerability
 
